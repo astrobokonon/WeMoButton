@@ -1,0 +1,5 @@
+knownaps.json
+.vscode/launch.json
+*.pyc
+__pycache__
+webrepl_cfg.py
