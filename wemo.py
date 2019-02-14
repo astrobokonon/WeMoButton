@@ -17,7 +17,7 @@ import utils
 try:
     # from urequests import get, post
     from utils_requests import get, post
-except ImportError:
+except ImportError as ie:
     from requests import get, post
 
 
@@ -50,7 +50,7 @@ class switch:
         if stat is not None:
             try:
                 state = int(stat)
-            except ValueError:
+            except ValueError as:
                 state = stat
         else:
             print("STATUS QUERY FAILED!!!")
@@ -84,7 +84,7 @@ class switch:
                     return self.tagger(rsp.text, tagname)
                 else:
                     return "OK"
-        except OSError:
+        except OSError as oe:
             print("WeMo unreachable!")
             self.port = 0
             return None
@@ -147,7 +147,7 @@ class switch:
 
         try:
             rstr = txt[beg+ln:end]
-        except ValueError:
+        except ValueError as ve:
             # Implies that the substring wasn't/couldn't be found
             rstr = None
 
@@ -194,7 +194,7 @@ class switch:
                     # Jump out of the loop early
                     break
                 time.sleep(0.25)
-            except OSError:
+            except OSError as oe:
                 # This was a bad port so move along
                 print("Port %d failed :(" % (testport))
             finally:

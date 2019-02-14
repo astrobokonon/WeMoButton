@@ -44,7 +44,7 @@ class Response:
 def request(method, url, data=None, json=None, headers={}, stream=None):
     try:
         proto, dummy, host, path = url.split("/", 3)
-    except ValueError:
+    except ValueError as ve:
         proto, dummy, host = url.split("/", 2)
         path = ""
     if proto == "http:":
@@ -105,7 +105,7 @@ def request(method, url, data=None, json=None, headers={}, stream=None):
                     raise ValueError("Unsupported " + l)
             elif l.startswith(b"Location:") and not 200 <= status <= 299:
                 raise NotImplementedError("Redirects not yet supported")
-    except OSError:
+    except OSError as oe:
         s.close()
         raise
 

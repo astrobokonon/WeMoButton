@@ -6,7 +6,7 @@ import network
 def scanWiFi(wlan):
     try:
         nearbyaps = wlan.scan()
-    except OSError:
+    except OSError as oe:
         # Sometimes we get an "Wifi Invalid Argument" here
         nearbyaps = []
 
