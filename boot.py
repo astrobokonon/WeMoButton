@@ -1,6 +1,6 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
 import esp
-# esp.osdebug(None)
+esp.osdebug(0)
 
 # Adding in a few here even if they're not called directly to make sure
 #   they're always available in an interactive session
@@ -19,8 +19,9 @@ import wemoButton as wemobutt
 
 # Init the stuff
 # WiFi Status, cmd status, onboard
-leds = utils.led_init([14, 32, 25])
-butts = utils.buttons_init([17])
+# ESP-12 NodeMCU LED is on Pin 2...?
+leds = utils.led_init([2, 5, 4])
+butts = utils.buttons_init([14])
 time.sleep(3)
 
 # Define the known access points to try to connect to, and make them global
