@@ -50,7 +50,7 @@ class switch:
         if stat is not None:
             try:
                 state = int(stat)
-            except ValueError as:
+            except ValueError as ve:
                 state = stat
         else:
             print("STATUS QUERY FAILED!!!")
