@@ -13,10 +13,15 @@ def scanWiFi(wlan):
     return nearbyaps
 
 
-def startWiFi():
+def startWiFi(disableAP=True):
     # Start/restart the wifi
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
+
+    if disableAP is True:
+        # DISABLE the self-hosted access point
+        ap_if = network.WLAN(network.AP_IF)
+        ap_if.active(False)
 
     return wlan
 
