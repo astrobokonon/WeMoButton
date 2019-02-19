@@ -157,9 +157,7 @@ class switch:
         port = 0
         # If there's a port already specified, skip all the blinky stuff
         #   to cut down on nighttime blinks
-        if self.port == 0:
-            led = None
-        else:
+        if self.port != 0:
             # If we have a port, just try that one and see if it responds.
             #   If it does not, *then* do the full search
             answer = self.getFunc('GetSignalStrength', 'SignalStrength')
@@ -177,9 +175,8 @@ class switch:
             try:
                 print("Attempting to contact %s" % (tstr))
                 if led is not None:
-                    print("Blinking LED")
                     utils.blinken(led, 0.25, 2)
-                    led.value(1)
+                    led.on()
 
                 answer = self.getFunc('GetSignalStrength', 'SignalStrength',
                                       url=tstr)
@@ -195,8 +192,7 @@ class switch:
                     self.url = "http://%s%s" % (self.full, self.service)
 
                     if led is not None:
-                        print("Turning off LED")
-                        led.value(0)
+                        led.off()
 
                     # Jump out of the loop early
                     break
@@ -206,8 +202,7 @@ class switch:
                 print("Port %d failed :(" % (testport))
             finally:
                 if led is not None:
-                    print("Turning FINALLY LED")
-                    led.value(0)
+                    led.off()
             print("Pausing for 0.25 seconds before next query")
 
         return port
