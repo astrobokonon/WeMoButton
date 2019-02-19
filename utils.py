@@ -2,34 +2,63 @@ import time
 from machine import Pin, PWM, Timer
 
 
-def buttons_init(pins):
+class shinyThing(object):
+    def __init__(self, pin=None, inverted=False, startBlink=True):
+        self.pinnum = pin
+        self.inverted = inverted
+
+        # Should probably put this in a try...except block?
+        self.pin = initLED(self.pinnum)
+
+        if startBlink is True:
+            self.on()
+            time.sleep(1)
+            self.off()
+
+    def on(self):
+        """
+        Alternate/backup interface to self.pin.on(). Allows me to wrap the
+        inversion logic into it so I can always use on() and off().
+        """
+        if self.inverted is True:
+            self.pin.value(0)
+        else:
+            self.pin.value(1)
+
+    def off(self):
+        if self.inverted is True:
+            self.pin.value(1)
+        else:
+            self.pin.value(0)
+
+    def toggle(self):
+        self.pin.value(not self.pin.value())
+
+
+def initButton(pinno):
+    """
+    """
+    print("Setting Pin %02d as INPUT" % (pinno))
+    butt = Pin(pinno, Pin.IN, Pin.PULL_UP)
+
     # I am a simple man.
-    butts = []
-    for pin in pins:
-        print("Setting Pin %02d as INPUT" % (pin))
-        butt = Pin(pin, Pin.IN, Pin.PULL_UP)
-        butts.append(butt)
-
-    return butts
+    return butt
 
 
-def led_init(pins):
-    leds = []
-    for i, pinno in enumerate(pins):
-        # Regular (non-pwm, just on/off)
-        led = Pin(pinno, Pin.OUT)
-        led.value(1)
-        time.sleep(0.5)
-        led.value(0)
-        leds.append(led)
+def initLED(pinno):
+    """
+    """
+    # Regular (non-pwm, just on/off)
+    print("Setting Pin %02d as OUTPUT" % (pinno))
+    led = Pin(pinno, Pin.OUT)
 
-    return leds
+    return led
 
 
 def blinken(led, duration=0.5, nblinks=1):
     # duration is in seconds
-    for i in range(0, nblinks):
-        led.value(1)
+    for _ in range(0, nblinks):
+        led.on()
         time.sleep(duration)
-        led.value(0)
+        led.off()
         time.sleep(duration)
