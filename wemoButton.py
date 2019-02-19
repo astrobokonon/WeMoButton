@@ -2,6 +2,7 @@
 # leds[1] is the boot success/wifi indicator
 # butts[0] is the button pin object
 
+import gc
 import time
 from machine import Timer
 
@@ -23,13 +24,16 @@ def check_switch(p):
     buttPrevious = buttState
 
 
-def looper(knownaps, wlan, conncheck, wconfig, leds, butts):
+def looper(knownaps, wlan, conncheck, wconfig,
+           trigger=None,
+           ledTrigger=None, ledStatus=None, ledBuiltin=None):
+
     # Set up objects
     wemoip = '192.168.1.169'
     # These generally need  to be global to avoid headache of passing arguments
     #   to the check_switch function
     global triggerButton
-    triggerButton = butts[0]
+    triggerButton = trigger
     global buttState
     buttState = triggerButton.value()
     global buttPrevious
@@ -49,10 +53,6 @@ def looper(knownaps, wlan, conncheck, wconfig, leds, butts):
     wifiTime = None
     wemoTime = None
 
-    # LED renames
-    triggerLED = leds[1]
-    connLED = leds[0]
-
     # Check the WiFi status before we get started. Actually, don't do anything
     #   else until the WiFi comes back looking ok
     while conncheck is False:
@@ -66,7 +66,7 @@ def looper(knownaps, wlan, conncheck, wconfig, leds, butts):
     # Set up the basics of the WeMo object. From the above, we should
     #   have a valid wifi connection so go ahead and search for the port
     print("Setting up WeMo control object...")
-    wemoObj = wemo.switch(wemoip, portSearch=True, led=triggerLED)
+    wemoObj = wemo.switch(wemoip, portSearch=True, led=ledTrigger)
     wemoTime = time.ticks_ms()
     checkWeMo = False
     print("WeMo object created.")
@@ -80,13 +80,17 @@ def looper(knownaps, wlan, conncheck, wconfig, leds, butts):
         # If it's been 1.5 minutes or more, check the wifi status.
         if (time.ticks_diff(time.ticks_ms(), wifiTime)) > 90000:
             checkWiFi = True
+            # Print out some memory info
+            print("Memory info: %d alloc, %d free" % \
+                  (gc.mem_alloc(), gc.mem_free()))
+            print("Uptime: %d seconds" % (time.time()))
 
         if checkWeMo is True:
             print("Checking WeMo status...")
 
             # Only do it if the wifi checks out
             if conncheck is True:
-                port = wemoObj.portSearch(led=triggerLED)
+                port = wemoObj.portSearch(led=ledTrigger)
                 print("Port search results: ", port)
                 if port != 0:
                     wemoObj.port = port
@@ -99,6 +103,8 @@ def looper(knownaps, wlan, conncheck, wconfig, leds, butts):
             checkWeMo = False
 
         if checkWiFi is True:
+            gc.collect()
+
             print("Checking WiFi status...")
             # If it's dead, attempt to connect to the strongest of 'knownaps'
             #   NOTE: These should all exist from the first run in boot.py!
@@ -109,7 +115,7 @@ def looper(knownaps, wlan, conncheck, wconfig, leds, butts):
                                                              repl=True)
             if conncheck is False:
                 # Failed connection attempt! Try to warn
-                utils.blinken(connLED, 0.25, 5)
+                utils.blinken(ledStatus, 0.25, 5)
 
             # Update the time we checked regardless if it was good or bad
             wifiTime = time.ticks_ms()
@@ -137,22 +143,22 @@ def looper(knownaps, wlan, conncheck, wconfig, leds, butts):
                     print('Button pressed!')
                     print("Current port:", wemoObj.port)
                     if wemoObj.port != 0:
-                        triggerLED.value(1)
+                        ledTrigger.on()
                         wemoObj.toggle()
-                        triggerLED.value(0)
+                        ledTrigger.off()
                         # Since this worked, reset the state checks
                         checkWeMo = False
                         wemoTime = time.ticks_ms()
                     else:
                         print("WeMo is no bueno!")
-                        utils.blinken(triggerLED, 0.1, 7)
+                        utils.blinken(ledTrigger, 0.1, 7)
                         # Force a re-check of the wemo status
                         checkWeMo = True
 
                     # Record our time for the next comparison
                     buttTime = time.ticks_ms()
                 else:
-                    utils.blinken(triggerLED, 0.25, 3)
+                    utils.blinken(ledTrigger, 0.25, 3)
             buttOn = False
 
         # Ultimate loop time constant

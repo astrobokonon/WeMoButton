@@ -1,4 +1,5 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
+import gc
 import esp
 esp.osdebug(0)
 
@@ -19,9 +20,17 @@ import wemoButton as wemobutt
 
 # Init the stuff
 # WiFi Status, cmd status, onboard
-# ESP-12 NodeMCU LED is on Pin 2...?
-leds = utils.led_init([2, 5, 4])
-butts = utils.buttons_init([14])
+# ESP-12 NodeMCU LED is on Pin 2
+ledStatus = utils.shinyThing(pin=14)
+ledTrigger = utils.shinyThing(pin=16)
+ledBuiltin = utils.shinyThing(pin=2, inverted=True)
+
+butt = utils.initButton(12)
+
+ledStatus.on()
+ledBuiltin.on()
+
+# This gives time for any automatic wifi connection to finish
 time.sleep(3)
 
 # Define the known access points to try to connect to, and make them global
@@ -37,10 +46,10 @@ knownaps = json.loads(klines)
 wlan, conncheck, wconfig = uwifi.checkWifiStatus(knownaps, repl=True)
 
 if conncheck is True:
-    leds[0].value(0)
+    ledStatus.off()
 else:
-    utils.blinken(leds[0], 0.25, 10)
-    leds[0].value(1)
+    utils.blinken(ledStatus, 0.25, 10)
+    ledStatus.on()
 
 # In case you want the MAC address, here it is in two parts
 # macaddr = ubinascii.hexlify(wlan.config('mac'),':').decode()
@@ -51,5 +60,13 @@ else:
 #   we move on to main.py
 time.sleep(2)
 
+# Tidy up before the infinite loop
+ledBuiltin.off()
+gc.collect()
+
 # Start the main loop
-wemobutt.looper(knownaps, wlan, conncheck, wconfig, leds, butts)
+wemobutt.looper(knownaps, wlan, conncheck, wconfig,
+                trigger=butt,
+                ledTrigger=ledTrigger,
+                ledStatus=ledStatus,
+                ledBuiltin=ledBuiltin)
