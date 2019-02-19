@@ -159,6 +159,13 @@ class switch:
         #   to cut down on nighttime blinks
         if self.port == 0:
             led = None
+        else:
+            # If we have a port, just try that one and see if it responds.
+            #   If it does not, *then* do the full search
+            answer = self.getFunc('GetSignalStrength', 'SignalStrength')
+            if answer is not None:
+                print("Port %d still worked :)" % (self.port))
+                return self.port
 
         for testport in range(49152, 49156):
             tstr = 'http://%s:%s%s' % (self.ip, testport, self.service)
