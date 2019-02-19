@@ -83,7 +83,8 @@ def looper(knownaps, wlan, conncheck, wconfig,
             # Print out some memory info
             print("Memory info: %d alloc, %d free" % \
                   (gc.mem_alloc(), gc.mem_free()))
-            print("Uptime: %d seconds" % (time.time()))
+            uptime = time.time()
+            print("Uptime: %d seconds (%.02f hrs)" % (uptime, uptime/60./60.))
 
         if checkWeMo is True:
             print("Checking WeMo status...")
