@@ -30,6 +30,7 @@ class switch:
         self.url = None
         self.state = None
         self.name = None
+        self.checkTime = None
 
         # Search for the right port; can be re-called to verify later
         if portSearch is True:
@@ -86,6 +87,7 @@ class switch:
                     return "OK"
         except OSError as oe:
             print("WeMo unreachable!")
+            print(str(oe))
             self.port = 0
             return None
 
@@ -155,6 +157,10 @@ class switch:
 
     def portSearch(self, led=None):
         port = 0
+
+        # Record the time (ticks in ms since boot if NTP isn't set up/called)
+        self.checkTime = time.ticks_ms()
+
         # If there's a port already specified, skip all the blinky stuff
         #   to cut down on nighttime blinks
         if self.port != 0:
@@ -200,6 +206,7 @@ class switch:
             except OSError as oe:
                 # This was a bad port so move along
                 print("Port %d failed :(" % (testport))
+                print(str(oe))
             finally:
                 if led is not None:
                     led.off()
