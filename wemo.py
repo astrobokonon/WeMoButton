@@ -76,6 +76,10 @@ class switch:
 
     def postmaster(self, url, hd, data, tagname):
         try:
+            print("Sending to %s:" % (url))
+            print("headers: ", hd)
+            print("data: ", data)
+            print("tagname: ", tagname)
             rsp = post(url, headers=hd, data=data)
             if rsp.status_code != 200:
                 print(rsp.reason)
@@ -171,7 +175,7 @@ class switch:
                 print("Port %d still worked :)" % (self.port))
                 return self.port
 
-        for testport in range(49152, 49156):
+        for testport in range(49152, 49160):
             tstr = 'http://%s:%s%s' % (self.ip, testport, self.service)
             #
             # http://192.168.1.169:49153/upnp/control/basicevent1

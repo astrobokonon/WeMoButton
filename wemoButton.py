@@ -1,7 +1,3 @@
-# leds[0] is the button press indicator
-# leds[1] is the boot success/wifi indicator
-# butts[0] is the button pin object
-
 import gc
 import time
 from machine import Timer
@@ -22,6 +18,30 @@ def check_switch(p):
         buttOn = True
 
     buttPrevious = buttState
+
+
+def checkWiFi():
+    pass
+
+
+def checkWeMo(wemoObj, conncheck, ledTrigger):
+    print("Checking WeMo status...")
+
+    # Only do it if the wifi checks out
+    if conncheck is True:
+        port = wemoObj.portSearch(led=ledTrigger)
+        print("Port search results: ", port)
+        if port != 0:
+            wemoObj.port = port
+            print("WeMo is bueno!")
+        else:
+            print("WeMo is no bueno!")
+            wemoObj.port = 0
+
+    # Update the time we checked regardless if it was good or bad
+    wemoObj.checkTime = time.ticks_ms()
+
+    return wemoObj
 
 
 def looper(knownaps, wlan, conncheck, wconfig,
@@ -67,14 +87,13 @@ def looper(knownaps, wlan, conncheck, wconfig,
     #   have a valid wifi connection so go ahead and search for the port
     print("Setting up WeMo control object...")
     wemoObj = wemo.switch(wemoip, portSearch=True, led=ledTrigger)
-    wemoTime = time.ticks_ms()
     checkWeMo = False
     print("WeMo object created.")
 
     while True:
         # If it's been 15 minutes or more, check the wemo state
         #   Split it into this 2-step check to allow for on-demand checks
-        if (time.ticks_diff(time.ticks_ms(), wemoTime)) > 900000:
+        if (time.ticks_diff(time.ticks_ms(), wemoObj.checkTime)) > 900000:
             checkWeMo = True
 
         # If it's been 1.5 minutes or more, check the wifi status.
@@ -88,22 +107,11 @@ def looper(knownaps, wlan, conncheck, wconfig,
 
         if checkWeMo is True:
             print("Checking WeMo status...")
-
-            # Only do it if the wifi checks out
-            if conncheck is True:
-                port = wemoObj.portSearch(led=ledTrigger)
-                print("Port search results: ", port)
-                if port != 0:
-                    wemoObj.port = port
-                    print("WeMo is bueno!")
-                else:
-                    print("WeMo is no bueno!")
-                    wemoObj.port = 0
-            # Update the time we checked regardless if it was good or bad
-            wemoTime = time.ticks_ms()
+            wemoObj = checkWeMo(wemoObj, conncheck, ledTrigger)
             checkWeMo = False
 
         if checkWiFi is True:
+            # Clean up here since this is the shorter/tighter loop
             gc.collect()
 
             print("Checking WiFi status...")
@@ -142,19 +150,29 @@ def looper(knownaps, wlan, conncheck, wconfig,
 
                 if validPress:
                     print('Button pressed!')
-                    print("Current port:", wemoObj.port)
+
+                    # Check to see if the WeMo responds
+
+                    # Try 3 times to actually send the button push command
+                    ctries = 0
+                    while wemoObj.port == 0 and ctries < 3:
+                        print("Checking WeMo status...")
+                        wemoObj = checkWeMo(wemoObj, conncheck, ledTrigger)
+                        ctries += 1
+
                     if wemoObj.port != 0:
                         ledTrigger.on()
                         wemoObj.toggle()
                         ledTrigger.off()
                         # Since this worked, reset the state checks
                         checkWeMo = False
-                        wemoTime = time.ticks_ms()
+                        wemoObj.checkTime = time.ticks_ms()
                     else:
                         print("WeMo is no bueno!")
                         utils.blinken(ledTrigger, 0.1, 7)
-                        # Force a re-check of the wemo status
+                        # Force re-check of the wemo status the next time thru
                         checkWeMo = True
+
 
                     # Record our time for the next comparison
                     buttTime = time.ticks_ms()
