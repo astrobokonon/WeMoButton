@@ -1,5 +1,127 @@
 import time
-from machine import Pin, PWM, Timer
+import urequests
+from machine import Pin
+
+
+def postNetConfig(wlan, dbconfig, debug=True):
+    """
+    """
+    # Quick and early exit
+    if wlan.isconnected() is False:
+        sV = False
+        return sV
+
+    # curIPs: ip, subnet, gateway, dns
+    curIPs = wlan.ifconfig()
+    curAP = wlan.config('essid')
+    curRSSI = wlan.status('rssi')
+
+    if debug is True:
+        print("Connected to %s at %s thru %s at %.0f dBm\n" % (curAP, 
+                                                               curIPs[0],
+                                                               curIPs[2],
+                                                               curRSSI))
+
+    # We always try at least once, but we check before trying again
+    #   Logic is a bit clunky but it'll work.  This makes it so once sV 
+    #   goes False, it stays False and is returned.  I suppose I could
+    #   gather them all up independently and then check but this seemed 
+    #   a little faster/easier.
+    sV = False
+    sV = postToInfluxDB(dbconfig, curIPs[0], keyname="ipaddress",
+                        tagN="config", tagV="network")
+    time.sleep(0.25)
+
+    if sV is True:
+        sV = postToInfluxDB(dbconfig, curIPs[2], keyname="gateway",
+                            tagN="config", tagV="network")
+        time.sleep(0.25)
+
+    if sV is True:
+        sV = postToInfluxDB(dbconfig, curIPs[3], keyname="dns",
+                            tagN="config", tagV="network")
+        time.sleep(0.25)
+
+    if sV is True:
+        sV = postToInfluxDB(dbconfig, curAP, keyname="accesspoint",
+                            tagN="config", tagV="network")
+        time.sleep(0.25)
+
+    if sV is True:
+        sV = postToInfluxDB(dbconfig, curRSSI, keyname="rssi",
+                            tagN="config", tagV="network")
+
+    return sV
+
+
+def postToInfluxDB(dbconfig, value, keyname='value', tagN=None, tagV=None):
+    """
+    Just using the HTTP endpoint and the simple line protocol.
+
+    Also letting the database time tag it for us.
+    """
+    host = dbconfig['dbhost']
+    port = dbconfig['dbport']
+    dbname = dbconfig['dbname']
+    metric = dbconfig['dbtabl']
+
+    dbuser = None
+    dbpass = None
+    try:
+        dbuser = dbconfig['dbuser']
+    except KeyError:
+        # print("No database user found")
+        pass
+
+    if dbuser is not None:
+        try:
+            dbpass = dbconfig['dbpass']
+        except KeyError:
+            pass
+            # print("DB user defined, but no password given!")
+    
+    success = False
+
+    if dbuser is not None and dbpass is not None:
+        url = "http://%s:%s/write?u=%s&p=%s&db=%s" % (host, port,
+                                                      dbuser, dbpass, dbname)
+    else:
+        url = "http://%s:%s/write?db=%s" % (host, port, dbname)
+
+    print("Using HTTP URL:")
+    print(url)
+
+    if (tagN is not None) and (tagV is not None):
+        if isinstance(value, float):
+            line = '%s,%s=%s %s=%.02f' % (metric, tagN, tagV, keyname, value)
+        elif isinstance(value, int):
+            line = '%s,%s=%s %s=%d' % (metric, tagN, tagV, keyname, value)
+        elif isinstance(value, str):
+            line = '%s,%s=%s %s="%s"' % (metric, tagN, tagV, keyname, value)
+    else:
+        if isinstance(value, float):
+            line = '%s %s=%.02f' % (metric, keyname, value)
+        if isinstance(value, int):
+            line = '%s %s=%d' % (metric, keyname, value)
+        elif isinstance(value, str):
+            line = '%s %s="%s"' % (metric, keyname, value)
+
+    # There are few rails here so this could go ... poorly.
+    try:
+        print("Posting to %s:%s %s.%s" % (host, port,
+                                          dbname, metric))
+        # print("%s=%s, %s=%s" % (tagN, tagV, keyname, value))
+        print(url)
+        print(line)
+        response = urequests.post(url, data=line)
+        print("Response:", response.status_code, response.text)
+        success = True
+    except OSError as e:
+        print(str(e))
+    except Exception as e:
+        print(str(e))
+
+    return success
 
 
 class shinyThing(object):

@@ -24,23 +24,21 @@ def check_switch(p):
     buttPrevious = buttState
 
 
-def looper(knownaps, wlan, conncheck, wconfig,
-           trigger=None,
-           ledTrigger=None, ledStatus=None, ledBuiltin=None):
+def go(knownaps, dbconfig, wlconfig, loops=25):
+    # Unpack the wireless configuration stuff
+    wlan = wlconfig['wlan']
+    wconfig = wlconfig['wconfig']
 
-    # Set up objects
-    wemoip = '192.168.1.169'
-    # These generally need  to be global to avoid headache of passing arguments
-    #   to the check_switch function
-    global triggerButton
-    triggerButton = trigger
-    global buttState
-    buttState = triggerButton.value()
-    global buttPrevious
-    buttPrevious = buttState
-    global buttOn
-    buttOn = False
-    validPress = False
+    # Init the things
+    # WiFi Status, cmd status, onboard
+    # ESP-12 NodeMCU LED is on Pin 2
+    ledStatus = utils.shinyThing(pin=14)
+    ledTrigger = utils.shinyThing(pin=16)
+    ledBuiltin = utils.shinyThing(pin=2, inverted=True)
+    triggerButton = utils.initButton(12)
+
+    # Use the built-in one for this board to indicate our init status
+    ledBuiltin.on()
 
     # Check the state of the button every (period) ms, using
     #   the check_switch func to actually act/set stuff
@@ -48,16 +46,30 @@ def looper(knownaps, wlan, conncheck, wconfig,
     tim.init(period=10, mode=Timer.PERIODIC, callback=check_switch)
     print("Button timer init complete.")
 
+    # Indicate our WiFi connection status
+    if wlan.isconnected() is True:
+        ledStatus.off()
+    else:
+        utils.blinken(ledStatus, 0.25, 10)
+        ledStatus.on()
+
+    # Capture our starting states
+    buttState = triggerButton.value()
+    buttPrevious = buttState
+    buttOn = False
+
+    # These generally need  to be global to avoid headache of passing args
+    #   to the check_switch function
+    global triggerButton, buttState, buttPrevious, buttOn
+
+    # Set up objects
+    wemoip = '192.168.1.169'
+    validPress = False
+
     # Timers
     buttTime = None
     wifiTime = None
     wemoTime = None
-
-    # Check the WiFi status before we get started. Actually, don't do anything
-    #   else until the WiFi comes back looking ok
-    while conncheck is False:
-        wlan, conncheck, wconfig = uwifi.checkWifiStatus(knownaps, repl=True)
-    print("WiFi established.")
 
     # Record the time when we actually break out
     wifiTime = time.ticks_ms()
@@ -71,7 +83,14 @@ def looper(knownaps, wlan, conncheck, wconfig,
     checkWeMo = False
     print("WeMo object created.")
 
-    while True:
+    # Use the built-in one for this board to indicate our init status
+    ledBuiltin.off()
+
+    loopCounter = 0
+    while loopCounter < loops:
+        # Try to store the connection information
+        sV = utils.postNetConfig(wlan, dbconfig)
+
         # If it's been 15 minutes or more, check the wemo state
         #   Split it into this 2-step check to allow for on-demand checks
         if (time.ticks_diff(time.ticks_ms(), wemoTime)) > 900000:
@@ -80,11 +99,6 @@ def looper(knownaps, wlan, conncheck, wconfig,
         # If it's been 1.5 minutes or more, check the wifi status.
         if (time.ticks_diff(time.ticks_ms(), wifiTime)) > 90000:
             checkWiFi = True
-            # Print out some memory info
-            print("Memory info: %d alloc, %d free" % \
-                  (gc.mem_alloc(), gc.mem_free()))
-            uptime = time.time()
-            print("Uptime: %d seconds (%.02f hrs)" % (uptime, uptime/60./60.))
 
         if checkWeMo is True:
             print("Checking WeMo status...")
@@ -107,13 +121,10 @@ def looper(knownaps, wlan, conncheck, wconfig,
             gc.collect()
 
             print("Checking WiFi status...")
-            # If it's dead, attempt to connect to the strongest of 'knownaps'
-            #   NOTE: These should all exist from the first run in boot.py!
-            wlan, conncheck, wconfig = uwifi.checkWifiStatus(knownaps,
-                                                             wlan=wlan,
-                                                             conn=conncheck,
-                                                             conf=wconfig,
-                                                             repl=True)
+            wlan, wconfig = uwifi.checkWifiStatus(knownaps,
+                                                  wlan=wlan,
+                                                  conf=wconfig,
+                                                  repl=False)
             if conncheck is False:
                 # Failed connection attempt! Try to warn
                 utils.blinken(ledStatus, 0.25, 5)
@@ -162,5 +173,9 @@ def looper(knownaps, wlan, conncheck, wconfig,
                     utils.blinken(ledTrigger, 0.25, 3)
             buttOn = False
 
-        # Ultimate loop time constant
+        # Prepare for the next loop, if there is one left in the hopper
+        gc.collect()
+        micropython.mem_info()
+        loopCounter += 1
+
         time.sleep_ms(5)

@@ -5,3 +5,4 @@ __pycache__
 webrepl_cfg.py
 .vscode/arduino.json
 .vscode/c_cpp_properties.json
+dbconfig.json
