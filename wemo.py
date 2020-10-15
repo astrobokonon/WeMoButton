@@ -160,7 +160,6 @@ class switch:
         return rstr
 
     def portSearch(self, led=None):
-        port = 0
         delay = 0.1
 
         # Record the time (ticks in ms since boot if NTP isn't set up/called)
@@ -217,4 +216,4 @@ class switch:
 
             print("Pausing for %f seconds before next query" % (delay))
 
-        return port
+        return self.port
