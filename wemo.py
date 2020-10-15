@@ -215,6 +215,6 @@ class switch:
                 if led is not None:
                     led.off()
 
-            print("Pausing for %f seconds before next query" % (delay)))
+            print("Pausing for %f seconds before next query" % (delay))
 
         return port
