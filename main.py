@@ -42,6 +42,7 @@ def go(deviceid, config, wlconfig, loops=25):
     ledStatus = utils.shinyThing(pin=14)
     ledTrigger = utils.shinyThing(pin=16)
     ledBuiltin = utils.shinyThing(pin=2, inverted=True)
+    buttPrevious = None
 
     # These generally need  to be global to avoid headache of passing args
     #   to the check_switch function
