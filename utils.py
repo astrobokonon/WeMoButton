@@ -3,7 +3,7 @@ import urequests
 from machine import Pin
 
 
-def postNetConfig(wlan, dbconfig, debug=True):
+def postNetConfig(wlan, dbconfig, tagname="cynomys", debug=True):
     """
     """
     # Quick and early exit
@@ -17,39 +17,39 @@ def postNetConfig(wlan, dbconfig, debug=True):
     curRSSI = wlan.status('rssi')
 
     if debug is True:
-        print("Connected to %s at %s thru %s at %.0f dBm\n" % (curAP, 
+        print("Connected to %s at %s thru %s at %.0f dBm\n" % (curAP,
                                                                curIPs[0],
                                                                curIPs[2],
                                                                curRSSI))
 
     # We always try at least once, but we check before trying again
-    #   Logic is a bit clunky but it'll work.  This makes it so once sV 
+    #   Logic is a bit clunky but it'll work.  This makes it so once sV
     #   goes False, it stays False and is returned.  I suppose I could
-    #   gather them all up independently and then check but this seemed 
+    #   gather them all up independently and then check but this seemed
     #   a little faster/easier.
     sV = False
     sV = postToInfluxDB(dbconfig, curIPs[0], keyname="ipaddress",
-                        tagN="config", tagV="network")
+                        tagN=tagname, tagV="network")
     time.sleep(0.25)
 
     if sV is True:
         sV = postToInfluxDB(dbconfig, curIPs[2], keyname="gateway",
-                            tagN="config", tagV="network")
+                            tagN=tagname, tagV="network")
         time.sleep(0.25)
 
     if sV is True:
         sV = postToInfluxDB(dbconfig, curIPs[3], keyname="dns",
-                            tagN="config", tagV="network")
+                            tagN=tagname, tagV="network")
         time.sleep(0.25)
 
     if sV is True:
         sV = postToInfluxDB(dbconfig, curAP, keyname="accesspoint",
-                            tagN="config", tagV="network")
+                            tagN=tagname, tagV="network")
         time.sleep(0.25)
 
     if sV is True:
         sV = postToInfluxDB(dbconfig, curRSSI, keyname="rssi",
-                            tagN="config", tagV="network")
+                            tagN=tagname, tagV="network")
 
     return sV
 
@@ -79,7 +79,7 @@ def postToInfluxDB(dbconfig, value, keyname='value', tagN=None, tagV=None):
         except KeyError:
             pass
             # print("DB user defined, but no password given!")
-    
+
     success = False
 
     if dbuser is not None and dbpass is not None:

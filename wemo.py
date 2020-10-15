@@ -161,6 +161,7 @@ class switch:
 
     def portSearch(self, led=None):
         port = 0
+        delay = 0.1
 
         # Record the time (ticks in ms since boot if NTP isn't set up/called)
         self.checkTime = time.ticks_ms()
@@ -193,12 +194,11 @@ class switch:
 
                 if answer is not None:
                     print("Port %d worked :)" % (testport))
-                    port = testport
+                    print(answer)
 
-                    self.port = port
-
-                    # Update the URL to the correct one
-                    self.full = "%s:%s" % (self.ip, port)
+                    # Update the things
+                    self.port = testport
+                    self.full = "%s:%s" % (self.ip, self.port)
                     self.url = "http://%s%s" % (self.full, self.service)
 
                     if led is not None:
@@ -206,14 +206,15 @@ class switch:
 
                     # Jump out of the loop early
                     break
-                time.sleep(0.25)
+                time.sleep(delay)
             except OSError as oe:
                 # This was a bad port so move along
-                print("Port %d failed :(" % (testport))
+                print("Port %d didn't work" % (testport))
                 print(str(oe))
             finally:
                 if led is not None:
                     led.off()
-            print("Pausing for 0.25 seconds before next query")
+
+            print("Pausing for %f seconds before next query" % (delay)))
 
         return port

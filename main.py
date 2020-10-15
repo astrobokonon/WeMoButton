@@ -4,10 +4,11 @@
 
 import gc
 import time
+import micropython
 from machine import Timer
 
+import wemo
 import utils
-import wemo as wemo
 import utils_wifi as uwifi
 import utils_requests as ureq
 
@@ -24,8 +25,14 @@ def check_switch(p):
     buttPrevious = buttState
 
 
-def go(knownaps, dbconfig, wlconfig, loops=25):
-    # Unpack the wireless configuration stuff
+def go(deviceid, config, wlconfig, loops=25):
+    """
+    Every single board deployment must have this function accepting these
+    exact arguments.  Only way to ensure a non-maddening structure!
+    """
+    # Unpack the things
+    knownaps = config['knownaps']
+    dbconfig = config['dbconfig']
     wlan = wlconfig['wlan']
     wconfig = wlconfig['wconfig']
 
@@ -35,6 +42,14 @@ def go(knownaps, dbconfig, wlconfig, loops=25):
     ledStatus = utils.shinyThing(pin=14)
     ledTrigger = utils.shinyThing(pin=16)
     ledBuiltin = utils.shinyThing(pin=2, inverted=True)
+
+    # These generally need  to be global to avoid headache of passing args
+    #   to the check_switch function
+    global triggerButton
+    global buttState
+    global buttPrevious
+    global buttOn
+
     triggerButton = utils.initButton(12)
 
     # Use the built-in one for this board to indicate our init status
@@ -57,10 +72,6 @@ def go(knownaps, dbconfig, wlconfig, loops=25):
     buttState = triggerButton.value()
     buttPrevious = buttState
     buttOn = False
-
-    # These generally need  to be global to avoid headache of passing args
-    #   to the check_switch function
-    global triggerButton, buttState, buttPrevious, buttOn
 
     # Set up objects
     wemoip = '192.168.1.169'
@@ -87,10 +98,7 @@ def go(knownaps, dbconfig, wlconfig, loops=25):
     ledBuiltin.off()
 
     loopCounter = 0
-    while loopCounter < loops:
-        # Try to store the connection information
-        sV = utils.postNetConfig(wlan, dbconfig)
-
+    while True:
         # If it's been 15 minutes or more, check the wemo state
         #   Split it into this 2-step check to allow for on-demand checks
         if (time.ticks_diff(time.ticks_ms(), wemoTime)) > 900000:
@@ -101,10 +109,13 @@ def go(knownaps, dbconfig, wlconfig, loops=25):
             checkWiFi = True
 
         if checkWeMo is True:
+            print("Memory info:")
+            micropython.mem_info()
+
             print("Checking WeMo status...")
 
             # Only do it if the wifi checks out
-            if conncheck is True:
+            if wlan.isconnected() is True:
                 port = wemoObj.portSearch(led=ledTrigger)
                 print("Port search results: ", port)
                 if port != 0:
@@ -113,21 +124,29 @@ def go(knownaps, dbconfig, wlconfig, loops=25):
                 else:
                     print("WeMo is no bueno!")
                     wemoObj.port = 0
+            else:
+                # Force re-check the wifi
+                checkWifi = True
+                # Then force re-check the WeMo on the next loop
+                checkWemo = True
+
             # Update the time we checked regardless if it was good or bad
             wemoTime = time.ticks_ms()
             checkWeMo = False
 
         if checkWiFi is True:
-            gc.collect()
-
             print("Checking WiFi status...")
             wlan, wconfig = uwifi.checkWifiStatus(knownaps,
                                                   wlan=wlan,
                                                   conf=wconfig,
                                                   repl=False)
-            if conncheck is False:
+
+            if wlan.isconnected() is False:
                 # Failed connection attempt! Try to warn
                 utils.blinken(ledStatus, 0.25, 5)
+            else:
+                # Try to store the connection information
+                sV = utils.postNetConfig(wlan, dbconfig, tagname=deviceid)
 
             # Update the time we checked regardless if it was good or bad
             wifiTime = time.ticks_ms()
@@ -175,7 +194,6 @@ def go(knownaps, dbconfig, wlconfig, loops=25):
 
         # Prepare for the next loop, if there is one left in the hopper
         gc.collect()
-        micropython.mem_info()
         loopCounter += 1
 
         time.sleep_ms(5)

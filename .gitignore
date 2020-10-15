@@ -6,3 +6,5 @@ webrepl_cfg.py
 .vscode/arduino.json
 .vscode/c_cpp_properties.json
 dbconfig.json
+config.json
+.vscode/settings.json
